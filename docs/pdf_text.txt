@@ -1,0 +1,227 @@
+
+--- PAGE 1 ---
+Ejecutor lotes
+Juan Francisco Cardona Mc’Cormick et al
+25 de Septiembre de 2025
+1. Introducci´ on
+2. Descripci´ on general del sistema
+En la figura 2 se observa el diagrama general del sistema. Este sistema
+simula un sistema de ejecuci´ on encontrado en los sistemas operativos de
+mainframe. En estos sistemas se registran (gesprog) las imagenes de los pro-
+gramas con su descripci´ on, ejecutable, argumentos y ambiente, para luego ser
+ejecutados directamente a trav´ es de un identificador obtenido en el registro
+de los mismos. Cada proceso sigue el modelo de proceso de lotes, que lee los
+datos de su entrada est´ andar, la procesa y retorna el resultado en su salida
+est´ andar.
+El sistema registra ( gesfich) tambi´ en los ficheros que ser´ a fuente o des-
+tino de los futuros proceso de lotes ejecutados a trav´ es del ejecutor.
+Un cliente se conecta al ctrllt registrando los programas, los ficheros
+y determinando como se van a ejecutar los procesos.
+3. Sistema detallado
+3.1. Tipo de comunicaci´ on
+La comunicaci´ on entre los diferentes procesos se llevar´ a a trav´ es de tu-
+ber´ ıas nombradas. En algunos sistemas operativos las tuber´ ıas nombradas
+son full-duplex, lo que necesitar´ a una sola tuber´ ıa. En otros sistemas son
+half-duplex, por lo que se requerir´ a dos tuber´ ıas nombradas.
+Cada tuber´ ıa utilizada deber´ a tener un nombre ´ unico.
+1
+
+--- PAGE 2 ---
+cliente ctrllt gesprog
+gesfich
+ejecutor
+aralmac
+Figura 1: Descripci´ on general del sistema
+3.2. cliente
+El cliente se encarga de registrar, consultar, borrar y actualizar (CRUD)
+programas y ficheros. Tambi´ en se encarga de lanzar, consultar, y terminar
+los procesos de lotes. Este componente no hace parte de la implementaci´ on,
+y se entregar´ a una versi´ on para la segunda entrega.
+El sistema soporta m´ ultiples cliente ejecut´ andose sim´ ultaneamente conectan-
+do al servidor.
+3.2.1. Sinopsis
+cliente -c <tuberia-nombrada> [-a <tuberia-nombrada>]
+-c <tuberia-nombrada> Indica el nombre de la tuber´ ıa donde se van a
+enviar las peticiones a ctrllt1. -a <tuberia-nombrada> si el sistema oper-
+ativo tiene tuber´ ıas nombradas unidirecciones es neceario este nombre para
+recibir la respuestas de ctrllt2, este par´ ametro esopcional.
+1Tambi´ en puede ser utilizado para enviar peticiones agesfich, gesprog o ejecutor
+2Tambi´ en puede ser utilizado para recibir respuestas degesfich, gesprog o ejecutor
+2
+
+--- PAGE 3 ---
+3.3. ctrllt
+ctrlllt (Control de Lotes), es el coraz´ on del sistema. Es un servicio que
+recibe las peticiones de los m´ ultiples posibles clientes, analiza cada petici´ on
+y la dirige al servicio apropiado, esperando de este servicio su respuesta y
+redirigiendola al cliente.
+Este servicio se encarga de crear la(s) tuber´ ıa(s) que requiera conectarse
+con el cliente.
+Su funci´ on principal es de pasarela.
+3.3.1. Sinopsis
+ctrllt -c <tuberia-nombrada> [-a <tuberia-nombrada>] \
+-f <tuberia-nombrada> [-b <tuberia-nombrada>] \
+-p <tuberia-nombrada> [-c <tuberia-nombrada>] \
+-e <tuberia-nombrada> [-d <tuberia-nombrada>]
+Las opciones: -c, -f, -p, -e; corresponden a las tuber´ ıas nombradas para
+los procesos de ctrllt, gesfich, gesprog, ejecutor, respectivamente. Estas
+son para enviar peticiones a los correspondientes servicios.
+Las opciones: -a, -b, -c, -d; corresopnde a las tuber´ ıas nombradas para
+recibir las respuesta, si el sistema operativo solo soporta tuber´ ıas nombradas
+half-duplex, estas corresponden para los procesos dectrllt, gesfich, gesprog,
+ejecutor, respectivamente.
+3.3.2. M´ aquina de estados
+Corriendoinicio T erminadoT erminar
+Figura 2: M´ aquina de estados paractrllt
+3.4. gesfich
+gesfich se encarga de crear, actualizar, borrar, leer ficheros que se en-
+cuentran almacenados en la regi´ onaralmac.
+3
+
+--- PAGE 4 ---
+3.4.1. Sinopsis
+gesfich -f <tuberia-nombrada> [-b <tuberia-nombrada>] -x <info-aralmac>
+La opci´ on-f <tuberia-nombrada> indica el nombre de la tuber´ ıa nom-
+brada para recibir peticiones (o recibir respuestas si el sistema operativo so-
+porta tuber´ ıas nombradasfull-duplex ). La opci´ on-b <tuberia-nombrada>
+es el nombre de la tuber´ ıa nombrada para enviar respuestas si el sistema op-
+erativo soporta tuber´ ıas nombradashalf-duplex, esta opci´ on esopcional. La
+opci´ on-x <info-aralmac> es la informaci´ on sobre la configuraci´ on del ser-
+vicio de almacenamiento para el dispositivo, donde <info-aralmac> puede
+ser la ruta de un directorio, los par´ ametros de una base de datos, etc.
+3.4.2. M´ aquina de estados
+Corriendoinicio
+T erminado
+Suspendido
+Crear/Leer/Actualizar/Borrar
+Suspender
+T erminar
+Reasumir
+T erminar
+Figura 3: M´ aquina de estados para el serviciogesfish
+3.4.3. Operaciones
+Crear : Se encarga crear un fichero vac´ ıo en el ´ area de almacenamiento. Re-
+torna un identificador del fichero ( id-fichero) )con el formato: f-XXXX,
+4
+
+--- PAGE 5 ---
+donde X es un digito. Ejemplo: f-0001, f-0002. Cada fichero creado
+debe ser ´ unico y tener su propio espacio para almacenar o leer lo datos
+por los procesos de lotes.
+Leer : Tiene dos formatos. En el primero recibe un id-fichero, lo ver´ ıfica, si
+existe retorna el contenido actual del fichero, en caso contrario reporta
+un error. En el segundo, sino recibe ning´ un identificador, retornar la
+informaci´ on de todos los ficheros registrados.
+Actualizar : Recibe dos elementos ( id-fichero) y la ruta de un fichero, verifica la
+existencia de ambos, si cumple estas condiciones copia el contenido del
+fichero dentro del aralmac. En caso incorrecto reporta un error.
+Borrar : Recibe un id-fichero, lo verifica, si existe lo borra del aralmac. En
+caso contrario, reporta un error.
+Suspender : No tiene par´ ametros. Si es posible pasa al estado Suspendido.
+Reasumir : No tiene par´ ametros. Si es posible pasa al estado Corriendo.
+Terminar : No tiene par´ ametros. Si es posible pasa al estadoTerminado, termina
+la ejecuci´ on del servicio.
+3.5. gesprog
+gesprog se encarga de guardar, actualizar, borrar, mostrar los programas
+que se encuentran almacenados en la regi´ onaralmac.
+3.5.1. Sinopsis
+gesprog -p <tuberia-nombrada> [-c <tuberia-nombrada>] -x <info-aralmac>
+La opci´ on-p <tuberia-nombrada> indica el nombre de la tuber´ ıa nom-
+brada para recibir peticiones (o recibir respuestas si el sistema operativo so-
+porta tuber´ ıas nombradasfull-duplex ). La opci´ on-c <tuberia-nombrada>
+es el nombre de la tuber´ ıa nombrada para enviar respuestas si el sistema op-
+erativo soporta tuber´ ıas nombradashalf-duplex, esta opci´ on esopcional. La
+opci´ on-x <info-aralmac> es la informaci´ on sobre la configuraci´ on del ser-
+vicio de almacenamiento para el dispositivo, donde <info-aralmac> puede
+ser la ruta de un directorio, los par´ ametros de una base de datos, etc.
+5
+
+--- PAGE 6 ---
+3.5.2. M´ aquina de estados
+CorriendoInicio
+T erminado
+Suspendido
+Guarda/Leer/Actualizar/Borrar
+Suspender
+T erminar
+Reasumir
+T erminar
+Leer
+Figura 4: M´ aquina de estados para el serviciogesprog
+3.5.3. Operaciones
+Guardar : Recibe el nombre de un ejecutable v´ alido (sea binario o un gui´ on), la
+lista de argumentos que va a ser utilizado cuando el programa corra,
+una lista de variables de ambiente en la cu´ al el programa debe ser
+ejecutado. Lo copia dentro aralmac, una vez almacendo retorna un
+identificado del programa (id-programa) con el formato: p-XXXX, donde
+X es un digito. Ejemplo: p-0001, p-0002.
+Leer : Recibe un id-fichero, lo ver´ ıfica, si existe retorna el contenido actual
+del fichero, en caso contrario reporta un error.
+Actualizar : Recibe dos elementos ( id-fichero) y la ruta de un fichero, verifica la
+existencia de ambos, si cumple estas condiciones copia el contenido del
+fichero dentro del aralmac. En caso incorrecto reporta un error.
+6
+
+--- PAGE 7 ---
+Borrar : Recibe un id-fichero, lo verifica, si existe lo borra del aralmac. En
+caso contrario, reporta un error.
+Suspender : No tiene par´ ametros. Si es posible pasa al estado Suspendido.
+Reasumir : No tiene par´ ametros. Si es posible pasa al estado Corriendo.
+Terminar : No tiene par´ ametros. Si es posible pasa al estadoTerminado, termina
+la ejecuci´ on del servicio.
+3.6. ejecutor
+ejecutor se encarga de ejecutar procesos de lotes, donde los programas
+y lo ficheros est´ an almacenados en aralmac y a partir de ellos se creen los
+procesos de lotes.
+3.6.1. Sinopsis
+ejecutor -e <tuberia-nombrada> [-d <tuberia-nombrada>] -x <info-aralmac>
+La opci´ on-e <tuberia-nombrada> indica el nombre de la tuber´ ıa nom-
+brada para recibir peticiones (o recibir respuestas si el sistema operativo so-
+porta tuber´ ıas nombradasfull-duplex ). La opci´ on-d <tuberia-nombrada>
+es el nombre de la tuber´ ıa nombrada para enviar respuestas si el sistema op-
+erativo soporta tuber´ ıas nombradashalf-duplex, esta opci´ on esopcional. La
+opci´ on-x <info-aralmac> es la informaci´ on sobre la configuraci´ on del ser-
+vicio de almacenamiento para el dispositivo, donde <info-aralmac> puede
+ser la ruta de un directorio, los par´ ametros de una base de datos, etc.
+3.6.2. M´ aquina de estados
+3.6.3. Operaciones
+Ejecutar : Recibe un arreglo conformado por un proceso lote. Si el proceso lote
+es correcto. Retorna un identificador de procesos de lotes en ejecuci´ on.
+Si es incorrecto retorna un mensaje de error.
+Estado : Tiene dos formatos. El primer formato recibe un identificador de pro-
+cesos de lotes. Si el identificador es v´ alido retorna el estado actual de
+proceso de lotes. Si el identificador es inv´ alido, retorna un mensaje de
+7
+
+--- PAGE 8 ---
+Ejecutarinicio Suspendidos
+P arar T erminar
+Ejecutar/Estado/M atar
+Suspender
+Reasumir
+P arar
+/P roceso = 0
+Figura 5: M´ aquina de estados para el servicioejecutor
+error. En el segundo formato, no recibe ning´ un identificador, lista el
+estado de todos los procesos de lotes.
+Matar :
+Suspender : No tiene par´ ametros. Si es posible pasa al estado Suspendido.
+Reasumir : No tiene par´ ametros. Si es posible pasa al estado Corriendo.
+Parar : No tiene par´ ametros. Si es posible pasa al estado Parar.
+4. Requerimientos
+1. Primera entrega.
+2. Grupos. Los grupos deben ser m´ aximo de dos integrantes, pare este
+tipo de grupo deben implementar las funciones sobre dos sistemas op-
+8
+
+--- PAGE 9 ---
+erativos (Windows 11 y Linux). Para trabajos individuales deben hacer
+sobre uno de los sistemas operativos, el profesor de cada curso define
+sobre cu´ al3. No se aceptan grupos de m´ as de dos estudiantes.
+3. Entrega. Un repositorio en GitHub o GitLab
+4. Documentos de entrega : Nombre fichero: ‘Dise˜ no.md‘, Directorio:
+‘docs/‘.
+5. Formato de los mensajes : JSON.
+6. Fecha primera entrega: Martes 5 de Mayo. Horario de corte: 6 p.m.
+3Por favor en la pr´ oxima semana informe si trabajar´ a individual o trabajar´ a en grupo
+9
