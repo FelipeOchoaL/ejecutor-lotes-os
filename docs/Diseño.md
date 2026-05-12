@@ -16,11 +16,25 @@ El flujo básico es:
 
 ```
 cliente → ctrllt → [gesprog | gesfich | ejecutor] → aralmac
+
 ```
 
 El cliente registra programas y ficheros, luego ordena su ejecución. El
 sistema los corre en segundo plano (batch) leyendo de ficheros de entrada
 y escribiendo en ficheros de salida.
+
+
+Ahora teniendo en cuenta la fases de entrega de la práctica, el flujo sería el siguiente 
+
+```
+
+Entrega 2:
+cliente → [gesprog | gesfich] → aralmac
+
+Entrega 3:
+cliente → ctrllt → [gesprog | gesfich | ejecutor] → aralmac
+
+```
 
 ---
 
@@ -38,6 +52,19 @@ y escribiendo en ficheros de salida.
 ---
 
 ## 3. Comunicación entre procesos
+
+Durante la segunda entrega, el cliente puede comunicarse directamente con
+`gesfich` y `gesprog`, sin pasar por `ctrllt`.
+
+Por esta razón, el protocolo de mensajes se diseñó para soportar ambos
+modos de operación:
+
+- comunicación directa cliente → servicio
+- comunicación indirecta cliente → ctrllt → servicio
+
+Cada mensaje incluye el campo `reply_to`, que indica explícitamente la
+tubería donde debe enviarse la respuesta. De esta forma, los servicios no
+dependen del origen del mensaje.
 
 ### Mecanismo: tuberías nombradas (FIFOs)
 
@@ -105,12 +132,18 @@ El formato elegido para todos los mensajes es JSON por las siguientes razones:
 
 ## 5. Protocolo de mensajes
 
+Los mensajes mostrados a continuación representan el diseño del protocolo de comunicación propuesto. 
+La estructura final puede ajustarse durante la implementación, manteniendo la semántica general.
+
+
 ### Estructura base de una petición
 
 Todo mensaje enviado al sistema tiene la siguiente estructura:
 
 ```json
 {
+  "source":     "cliente | ctrllt",
+  "reply_to":   "/tmp/fifo_resp_<pid>",
   "service":    "string",
   "action":     "string",
   "request_id": "string",
@@ -120,10 +153,13 @@ Todo mensaje enviado al sistema tiene la siguiente estructura:
 
 | Campo | Tipo | Descripción |
 |---|---|---|
+| `source` | string | Indica quién origina la petición: `"cliente"` o `"ctrllt"` |
+| `reply_to` | string | Nombre de la tubería FIFO donde debe enviarse la respuesta |
 | `service` | string | Servicio destino: `"gesfich"`, `"gesprog"`, `"ejecutor"` |
-| `action` | string | Operación a ejecutar (ver sección de cada servicio) |
-| `request_id` | string | Identificador único de la petición (UUID). Permite correlacionar respuestas con peticiones en un entorno de múltiples clientes |
-| `data` | objeto | Parámetros específicos de la operación. Puede ser `{}` si la operación no requiere parámetros |
+| `action` | string | Operación solicitada al servicio |
+| `request_id` | string | Identificador único de la petición (UUID) |
+| `data` | objeto | Parámetros específicos de la operación |
+
 
 ### Estructura base de una respuesta
 
@@ -162,7 +198,7 @@ Todo mensaje enviado al sistema tiene la siguiente estructura:
 
 1. Leer el mensaje JSON del cliente.
 2. Inspeccionar el campo `"service"`.
-3. Reenviar el mensaje completo (sin modificarlo) a la tubería del servicio correspondiente.
+3. Reenviar la petición al servicio correspondiente, preservando el `request_id` y `reply_to`.
 4. Esperar la respuesta del servicio.
 5. Reenviar la respuesta al cliente.
 
@@ -194,6 +230,10 @@ peticiones) o terminado. No se suspende.
 de lotes. Los ficheros se almacenan en `aralmac`. Cada fichero creado
 recibe un identificador único con el formato `f-XXXX`.
 
+`gesfich` puede recibir peticiones directamente desde el cliente o desde
+`ctrllt`. En ambos casos, responde al FIFO indicado en el campo `reply_to`
+del mensaje recibido.
+
 #### Máquina de estados
 
 ```
@@ -219,6 +259,8 @@ Leer, Actualizar, Borrar). Solo acepta `Reasumir` o `Terminar`.
 ```json
 // Petición
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesfich",
   "action":     "crear",
   "request_id": "550e8400-e29b-41d4-a716-446655440001",
@@ -245,6 +287,8 @@ Leer, Actualizar, Borrar). Solo acepta `Reasumir` o `Terminar`.
 ```json
 // Petición - leer un fichero específico
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesfich",
   "action":     "leer",
   "request_id": "550e8400-e29b-41d4-a716-446655440002",
@@ -268,6 +312,8 @@ Leer, Actualizar, Borrar). Solo acepta `Reasumir` o `Terminar`.
 ```json
 // Petición - listar todos los ficheros
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesfich",
   "action":     "leer",
   "request_id": "550e8400-e29b-41d4-a716-446655440003",
@@ -296,6 +342,8 @@ identificado por `id_fichero` dentro de aralmac.
 ```json
 // Petición
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesfich",
   "action":     "actualizar",
   "request_id": "550e8400-e29b-41d4-a716-446655440004",
@@ -321,6 +369,8 @@ identificado por `id_fichero` dentro de aralmac.
 ```json
 // Petición
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesfich",
   "action":     "borrar",
   "request_id": "550e8400-e29b-41d4-a716-446655440005",
@@ -346,6 +396,8 @@ servicio. No tienen parámetros en `data`.
 ```json
 // Petición (igual estructura para las tres)
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesfich",
   "action":     "suspender",
   "request_id": "550e8400-e29b-41d4-a716-446655440006",
@@ -368,6 +420,10 @@ servicio. No tienen parámetros en `data`.
 `gesprog` almacena los ejecutables (binarios o scripts) con sus argumentos
 y variables de ambiente en `aralmac`. Cada programa registrado recibe un
 identificador único con el formato `p-XXXX`.
+
+`gesprog` puede recibir peticiones directamente desde el cliente o desde
+`ctrllt`. En ambos casos, responde al FIFO indicado en el campo `reply_to`
+del mensaje recibido.
 
 #### Máquina de estados
 
@@ -397,6 +453,8 @@ ambiente. Devuelve el identificador del programa.
 ```json
 // Petición
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesprog",
   "action":     "guardar",
   "request_id": "550e8400-e29b-41d4-a716-446655440010",
@@ -426,6 +484,8 @@ lista todos los programas registrados.
 ```json
 // Petición - leer un programa específico
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesprog",
   "action":     "leer",
   "request_id": "550e8400-e29b-41d4-a716-446655440011",
@@ -451,6 +511,8 @@ lista todos los programas registrados.
 ```json
 // Petición - listar todos los programas
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesprog",
   "action":     "leer",
   "request_id": "550e8400-e29b-41d4-a716-446655440012",
@@ -478,6 +540,8 @@ lista todos los programas registrados.
 ```json
 // Petición
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesprog",
   "action":     "actualizar",
   "request_id": "550e8400-e29b-41d4-a716-446655440013",
@@ -505,6 +569,8 @@ lista todos los programas registrados.
 ```json
 // Petición
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesprog",
   "action":     "borrar",
   "request_id": "550e8400-e29b-41d4-a716-446655440014",
@@ -528,6 +594,8 @@ lista todos los programas registrados.
 
 ```json
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "gesprog",
   "action":     "terminar",
   "request_id": "550e8400-e29b-41d4-a716-446655440015",
@@ -577,6 +645,8 @@ y los ficheros de entrada y salida.
 ```json
 // Petición
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "ejecutor",
   "action":     "ejecutar",
   "request_id": "550e8400-e29b-41d4-a716-446655440020",
@@ -614,6 +684,8 @@ proceso; sin él, lista el estado de todos los procesos.
 ```json
 // Petición - estado de un proceso específico
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "ejecutor",
   "action":     "estado",
   "request_id": "550e8400-e29b-41d4-a716-446655440021",
@@ -637,6 +709,8 @@ proceso; sin él, lista el estado de todos los procesos.
 ```json
 // Petición - listar todos los procesos
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "ejecutor",
   "action":     "estado",
   "request_id": "550e8400-e29b-41d4-a716-446655440022",
@@ -664,6 +738,8 @@ proceso; sin él, lista el estado de todos los procesos.
 ```json
 // Petición
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "ejecutor",
   "action":     "matar",
   "request_id": "550e8400-e29b-41d4-a716-446655440023",
@@ -688,6 +764,8 @@ proceso; sin él, lista el estado de todos los procesos.
 ```json
 // Petición
 {
+  "source":     "cliente",
+  "reply_to":   "/tmp/fifo_resp_4312",
   "service":    "ejecutor",
   "action":     "parar",
   "request_id": "550e8400-e29b-41d4-a716-446655440024",
@@ -719,7 +797,7 @@ Cliente → ctrllt → gesprog
 
 ```json
 // Cliente envía a ctrllt:
-{ "service": "gesprog", "action": "guardar", "request_id": "req-1",
+{ "source": "cliente", "reply_to": "/tmp/fifo_resp_4312", "service": "gesprog", "action": "guardar", "request_id": "req-1",
   "data": { "ejecutable": "/bin/sort", "argumentos": ["-n"], "ambiente": [] } }
 
 // gesprog responde a ctrllt → ctrllt reenvía al cliente:
@@ -734,21 +812,21 @@ Cliente → ctrllt → gesfich
 ```
 
 ```json
-{ "service": "gesfich", "action": "crear", "request_id": "req-2", "data": {} }
+{ "source": "cliente", "reply_to": "/tmp/fifo_resp_4312", "service": "gesfich", "action": "crear", "request_id": "req-2", "data": {} }
 // Respuesta: { "id_fichero": "f-0001" }
 ```
 
 ### Paso 3 - Cargar datos en el fichero de entrada
 
 ```json
-{ "service": "gesfich", "action": "actualizar", "request_id": "req-3",
+{ "source": "cliente", "reply_to": "/tmp/fifo_resp_4312", "service": "gesfich", "action": "actualizar", "request_id": "req-3",
   "data": { "id_fichero": "f-0001", "ruta_fuente": "/home/salo/numeros.txt" } }
 ```
 
 ### Paso 4 - Registrar fichero de salida (vacío)
 
 ```json
-{ "service": "gesfich", "action": "crear", "request_id": "req-4", "data": {} }
+{ "source": "cliente", "reply_to": "/tmp/fifo_resp_4312", "service": "gesfich", "action": "crear", "request_id": "req-4", "data": {} }
 // Respuesta: { "id_fichero": "f-0002" }
 ```
 
@@ -759,7 +837,7 @@ Cliente → ctrllt → ejecutor
 ```
 
 ```json
-{ "service": "ejecutor", "action": "ejecutar", "request_id": "req-5",
+{ "source": "cliente", "reply_to": "/tmp/fifo_resp_4312", "service": "ejecutor", "action": "ejecutar", "request_id": "req-5",
   "data": { "id_programa": "p-0001",
             "id_fichero_entrada": "f-0001",
             "id_fichero_salida": "f-0002" } }
@@ -769,7 +847,7 @@ Cliente → ctrllt → ejecutor
 ### Paso 6 - Consultar el estado del proceso
 
 ```json
-{ "service": "ejecutor", "action": "estado", "request_id": "req-6",
+{ "source": "cliente", "reply_to": "/tmp/fifo_resp_4312", "service": "ejecutor", "action": "estado", "request_id": "req-6",
   "data": { "id_lote": "l-0001" } }
 // Respuesta: { "data": { "id_lote": "l-0001", "estado": "terminado" } }
 ```
@@ -777,7 +855,7 @@ Cliente → ctrllt → ejecutor
 ### Paso 7 - Leer el resultado
 
 ```json
-{ "service": "gesfich", "action": "leer", "request_id": "req-7",
+{ "source": "cliente", "reply_to": "/tmp/fifo_resp_4312", "service": "gesfich", "action": "leer", "request_id": "req-7",
   "data": { "id_fichero": "f-0002" } }
 // Respuesta: { "data": { "id_fichero": "f-0002", "contenido": "1\n2\n3\n5\n8\n" } }
 ```
