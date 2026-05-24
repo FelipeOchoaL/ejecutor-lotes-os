@@ -1,1 +1,1 @@
-C:\Users\felip\Desktop\os\practica\target\debug\gesfich.exe: C:\Users\felip\Desktop\os\practica\src\bin\gesfich.rs C:\Users\felip\Desktop\os\practica\src\lib.rs
+C:\Users\felip\Desktop\os\practica\target\debug\gesfich.exe: C:\Users\felip\Desktop\os\practica\src\aralmac.rs C:\Users\felip\Desktop\os\practica\src\bin\gesfich.rs C:\Users\felip\Desktop\os\practica\src\estado.rs C:\Users\felip\Desktop\os\practica\src\ids.rs C:\Users\felip\Desktop\os\practica\src\ipc.rs C:\Users\felip\Desktop\os\practica\src\lib.rs C:\Users\felip\Desktop\os\practica\src\protocolo.rs

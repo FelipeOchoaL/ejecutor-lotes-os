@@ -1,1 +1,1 @@
-C:\Users\felip\Desktop\os\practica\target\debug\ctrllt.exe: C:\Users\felip\Desktop\os\practica\src\bin\ctrllt.rs C:\Users\felip\Desktop\os\practica\src\lib.rs
+C:\Users\felip\Desktop\os\practica\target\debug\ctrllt.exe: C:\Users\felip\Desktop\os\practica\src\aralmac.rs C:\Users\felip\Desktop\os\practica\src\bin\ctrllt.rs C:\Users\felip\Desktop\os\practica\src\estado.rs C:\Users\felip\Desktop\os\practica\src\ids.rs C:\Users\felip\Desktop\os\practica\src\ipc.rs C:\Users\felip\Desktop\os\practica\src\lib.rs C:\Users\felip\Desktop\os\practica\src\protocolo.rs
