@@ -163,6 +163,7 @@ pub struct RespuestaOk {
     #[serde(rename = "codigo-salida", skip_serializing_if = "Option::is_none")]
     pub codigo_salida: Option<i32>,
 }
+// Aqui vouyyyyyyyyyyyyyyyyyyyyy
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "operacion")] // con este el serde sabe que tipo de operacion es
