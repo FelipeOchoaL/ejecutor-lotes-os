@@ -65,7 +65,8 @@ practica/
 │       └── ejecutor.rs     # ejecutor de lotes
 ├── docs/
 │   ├── ST0257-C2661-4677-Practica-V-II (1).pdf
-│   └── explicacion.md      # explicación detallada del código
+│   ├── explicacion.md      # explicación detallada del código
+│   └── ejecucion.md        # guía de comandos y escenarios de prueba
 └── scripts/
     ├── start.ps1           # arranque Windows
     ├── start.sh            # arranque Linux/macOS
@@ -168,11 +169,23 @@ una petición y recibe una respuesta. Tamaño máximo por mensaje: 4096 B.
 # → {"estado":"ok","id-fichero":"f-0001"}
 ```
 
-### 7.2. Desde Linux (con `socat` o `nc -U`)
+### 7.2. Desde Linux (con `socat`)
 
 ```bash
-echo '{"servicio":"gesfich","operacion":"Crear"}' | socat - UNIX-CONNECT:/tmp/ctrllt_req
+# Una sola vez por sesión: define la función helper
+send() { echo "$1" | socat -t2 - "ABSTRACT-CONNECT:${2:-pipe_ctrllt}"; }
+
+# Uso
+send '{"servicio":"gesfich","operacion":"Crear"}'
+# → {"estado":"ok","id-fichero":"f-0001"}
+
+# Bypass del ctrllt (hablar directo con un servicio)
+send '{"servicio":"gesfich","operacion":"Crear"}' pipe_gesfich
 ```
+
+> En Linux las "tuberías nombradas" del PDF se implementan con Unix Domain
+> Sockets en el namespace abstracto (`@pipe_ctrllt`). De ahí
+> `ABSTRACT-CONNECT` en `socat`.
 
 ### 7.3. Cualquier lenguaje
 
@@ -270,16 +283,33 @@ La explicación detallada con ejemplos JSON para cada operación está en
 
 ## 11. Pruebas rápidas
 
-```bash
+### Windows
+
+```powershell
 cargo build
-.\scripts\start.ps1                # o ./scripts/start.sh en Linux
+.\scripts\start.ps1
 .\scripts\send.ps1 -Mensaje '{"servicio":"gesfich","operacion":"Crear"}'
 .\scripts\send.ps1 -Mensaje '{"servicio":"ctrllt","operacion":"Terminar"}'
 ```
+
+### Linux
+
+```bash
+cargo build
+./scripts/start.sh
+send() { echo "$1" | socat -t2 - "ABSTRACT-CONNECT:${2:-pipe_ctrllt}"; }
+send '{"servicio":"gesfich","operacion":"Crear"}'
+send '{"servicio":"ctrllt","operacion":"Terminar"}'
+```
+
+> Para una **guía completa** con escenarios de prueba (CRUD, ejecución de
+> procesos, suspender/reasumir, concurrencia, shutdown ordenado), consulta
+> [`docs/ejecucion.md`](docs/ejecucion.md).
 
 ---
 
 ## 12. Referencias
 
 - PDF de la práctica: `docs/ST0257-C2661-4677-Practica-V-II (1).pdf`
-- Explicación detallada del código: `docs/explicacion.md`
+- Explicación detallada del código: [`docs/explicacion.md`](docs/explicacion.md)
+- Guía de ejecución y escenarios de prueba: [`docs/ejecucion.md`](docs/ejecucion.md)
